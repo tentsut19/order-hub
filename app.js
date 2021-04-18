@@ -130,6 +130,13 @@ app.post('/webhook', (req, res) => {
       console.log('recipient ID: ' + recipientId);
       let ids = recipientId+"_"+senderId;
       if (webhookEvent.message) {
+        let receivedMessage = webhookEvent.message;
+        var text = "";
+        if (receivedMessage.text) {
+          text = receivedMessage.text
+        } else if (receivedMessage.attachments) {
+          text = receivedMessage.attachments[0].payload.url;
+        }
         let message = webhookEvent.message;
         var sfDocRef = firestore.collection("webhookEvent").doc(ids);
 
@@ -138,7 +145,7 @@ app.post('/webhook', (req, res) => {
               const dateObject = new Date(webhookEvent.timestamp);
               var messageMap = { 
                 timestamp: dateObject, 
-                text: message.text, 
+                text: text, 
                 messageId: message.mid, 
                 epoch: webhookEvent.timestamp,
                 owner: 'customer'
@@ -149,7 +156,7 @@ app.post('/webhook', (req, res) => {
 
                   var data = {
                     messageId: message.mid,
-                    message: message.text,
+                    message: text,
                     senderId: senderId,
                     recipientId: recipientId,
                     epoch: webhookEvent.timestamp,
@@ -165,7 +172,7 @@ app.post('/webhook', (req, res) => {
 
                 var data = {
                   messageId: message.mid,
-                  message: message.text,
+                  message: text,
                   senderId: senderId,
                   recipientId: recipientId,
                   epoch: webhookEvent.timestamp,
