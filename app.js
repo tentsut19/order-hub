@@ -29,21 +29,6 @@ const
   { urlencoded, json } = require('body-parser'),
   app = express();
 
-  const firebase = require("firebase/app")
-  require("firebase/firestore")
-
-  var firebaseConfig = {
-    apiKey: "AIzaSyCpAxua59Wnmb3IOODt7kltAjj8kW0tqjE",
-    authDomain: "i-order-test.firebaseapp.com",
-    projectId: "i-order-test",
-    storageBucket: "i-order-test.appspot.com",
-    messagingSenderId: "942683266626",
-    appId: "1:942683266626:web:26d3220a1eebd5fa3a97db",
-    measurementId: "G-YMV4CGP7DR"
-  };
-  // Initialize Firebase
-  firebase.initializeApp(firebaseConfig);
-
 // Parse application/x-www-form-urlencoded
 app.use(urlencoded({ extended: true }));
 
@@ -52,36 +37,14 @@ app.use(json());
 
 // Respond with 'Hello World' when a GET request is made to the homepage
 app.get('/', function (_req, res) {
-  console.log('get!');
-  let firestore = firebase.firestore()
-  firestore.collection("webhookEvent").where("senderId", "==", '3741760685883256')
-  .get()
-  .then((querySnapshot) => {
-      var response = [];
-      querySnapshot.forEach((doc) => {
-          // doc.data() is never undefined for query doc snapshots
-          console.log(doc.id, " => ", doc.data());
-          response.push(doc.data());
-          console.log(response.length, " === ", querySnapshot.size);
-          if(response.length === querySnapshot.size) {
-            res.send(response);
-          }
-      });
-  })
-  .catch((error) => {
-      console.log("Error getting documents: ", error);
-      res.send('Error getting documents');
-  });
-
+  res.send('Hello World');
 });
 
 // Adds support for GET requests to our webhook
 app.get('/webhook', (req, res) => {
-  console.log('get webhook!');
 
   // Your verify token. Should be a random string.
-  // const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
-  const VERIFY_TOKEN = "TokenIOrder";
+  const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
   // Parse the query params
   let mode = req.query['hub.mode'];
@@ -107,9 +70,6 @@ app.get('/webhook', (req, res) => {
 
 // Creates the endpoint for your webhook
 app.post('/webhook', (req, res) => {
-  console.log('post webhook!');
-  let firestore = firebase.firestore()
-
   let body = req.body;
 
   // Checks if this is an event from a page subscription
@@ -122,54 +82,17 @@ app.post('/webhook', (req, res) => {
       let webhookEvent = entry.messaging[0];
       console.log(webhookEvent);
 
-      // Get the sender ID
-      let senderId = webhookEvent.sender.id;
-      console.log('Sender ID: ' + senderId);
-      // Get the recipient ID
-      let recipientId = webhookEvent.recipient.id;
-      console.log('recipient ID: ' + recipientId);
-      if(webhookEvent.message){
-        let message = webhookEvent.message;
-        let data = { 
-            messageId: message.mid,
-            messageText: message.text,
-            senderId: senderId,
-            recipientId: recipientId,
-            timestamp: webhookEvent.timestamp
-        }
-
-        console.log(data);
-
-        firestore.collection("webhookEvent")
-        // .doc("test")
-        .add(data)
-        .then(function(doc){ 
-          console.info(doc) 
-        }).catch(function(error){ 
-            console.error(error) 
-        });
-
-
-        // firestore.collection("webhookEvent")
-        // .add(webhookEvent)
-        // .then(function(doc){ 
-        //   console.info(doc.id) 
-        // }).catch(function(error){ 
-        //     console.error(error) 
-        // });
-
-      }
-      
-
-      // callSendAPI(senderPsid, webhookEvent.message.text);
+      // Get the sender PSID
+      let senderPsid = webhookEvent.sender.id;
+      console.log('Sender PSID: ' + senderPsid);
 
       // Check if the event is a message or postback and
       // pass the event to the appropriate handler function
-      // if (webhookEvent.message) {
-      //   handleMessage(senderPsid, webhookEvent.message);
-      // } else if (webhookEvent.postback) {
-      //   handlePostback(senderPsid, webhookEvent.postback);
-      // }
+      if (webhookEvent.message) {
+        handleMessage(senderPsid, webhookEvent.message);
+      } else if (webhookEvent.postback) {
+        handlePostback(senderPsid, webhookEvent.postback);
+      }
     });
 
     // Returns a '200 OK' response to all requests
@@ -245,41 +168,23 @@ function handlePostback(senderPsid, receivedPostback) {
 }
 
 // Sends response messages via the Send API
-function callSendAPI(senderPsid, text) {
+function callSendAPI(senderPsid, response) {
 
   // The page access token we have generated in your app settings
-  // const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
-  const PAGE_ACCESS_TOKEN = "EAAQAU40wctABACRuCSlF8bZAgZC3Uk26Pjal5KIkx2zsbmgh0KLriV7tHTZBYr4WRNwgOjvdXmdM1OAHaSuqZAfOt5iDELrS8RJKpB0l3yw6VFzjAMvkywgayO81Lcbtz0Ds9P0KypluaCcYxRr0lBqZB4bDchza6ZCYW97Gndg25nWCZBaTZBtyT46FlxChp8pnSHl6KdTfFAZDZD";
-  
-  const PAGE_ACCESS_TOKEN_V1 = "EAAQAU40wctABADENayzB6RyE67VixNrrGhod6ZCUJcu6DWc62mRUvla8j8Mk8gTbIKGaZBfElf6HRciuk3X2wDcgPy3ZCLrZBlHqPOYQI8qvYeTdWq9Qa6NrUF30Oh21cqt8753KHkwoYqTYTzZBnuMMC2tHaFYJmomoOZC0biRmkuUCXucW0yChmscl55ALZAQ6ZBr9hwsZB6gZDZD";
+  const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
 
   // Construct the message body
   let requestBody = {
     'recipient': {
       'id': senderPsid
     },
-    'message': {
-      'text': text
-    }
+    'message': response
   };
 
   // Send the HTTP request to the Messenger Platform
   request({
-    'uri': 'https://graph.facebook.com/v10.0/me/messages',
+    'uri': 'https://graph.facebook.com/v2.6/me/messages',
     'qs': { 'access_token': PAGE_ACCESS_TOKEN },
-    'method': 'POST',
-    'json': requestBody
-  }, (err, _res, _body) => {
-    if (!err) {
-      console.log('Message sent!');
-    } else {
-      console.error('Unable to send message:' + err);
-    }
-  });
-
-  request({
-    'uri': 'https://graph.facebook.com/v10.0/me/messages',
-    'qs': { 'access_token': PAGE_ACCESS_TOKEN_V1 },
     'method': 'POST',
     'json': requestBody
   }, (err, _res, _body) => {
@@ -292,6 +197,6 @@ function callSendAPI(senderPsid, text) {
 }
 
 // listen for requests :)
-var listener = app.listen(process.env.PORT || 3000, function() {
+var listener = app.listen(process.env.PORT, function() {
   console.log('Your app is listening on port ' + listener.address().port);
 });
