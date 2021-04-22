@@ -114,13 +114,13 @@ app.post('/webhook', (req, res) => {
 
   // Checks if this is an event from a page subscription
   if (body.object === 'page') {
-
+    console.log(body);
     // Iterates over each entry - there may be multiple if batched
     body.entry.forEach(function (entry) {
 
       // Gets the body of the webhook event
       let webhookEvent = entry.messaging[0];
-      //  console.log(webhookEvent);
+      // console.log(entry);
 
       // Get the sender ID
       let senderId = webhookEvent.sender.id;
@@ -132,10 +132,20 @@ app.post('/webhook', (req, res) => {
       if (webhookEvent.message) {
         let receivedMessage = webhookEvent.message;
         var text = "";
+        var type = "";
         if (receivedMessage.text) {
-          text = receivedMessage.text
+          text = receivedMessage.text;
+          type = "text";
         } else if (receivedMessage.attachments) {
+          // console.log(">>>>>>>>>>>>>>>>>>>>>");
+          // console.log(receivedMessage);
+          // console.log(receivedMessage.attachments[0]);
+          // console.log(">>>>>>>>>>>>>>>>>>>>>");
           text = receivedMessage.attachments[0].payload.url;
+          type = receivedMessage.attachments[0].type;
+          if(receivedMessage.attachments[0].payload.sticker_id){
+            type = "sticker";
+          }
         }
         let message = webhookEvent.message;
         var sfDocRef = firestore.collection("webhookEvent").doc(ids);
@@ -146,9 +156,11 @@ app.post('/webhook', (req, res) => {
               var messageMap = { 
                 timestamp: dateObject, 
                 text: text, 
+                type: type,
                 messageId: message.mid, 
                 epoch: webhookEvent.timestamp,
-                owner: 'customer'
+                owner: 'customer',
+                isRead: 1
               };
                 if (!sfDoc.exists) {
                   var messageList = [];
@@ -157,6 +169,7 @@ app.post('/webhook', (req, res) => {
                   var data = {
                     messageId: message.mid,
                     message: text,
+                    type: type,
                     senderId: senderId,
                     recipientId: recipientId,
                     epoch: webhookEvent.timestamp,
@@ -173,6 +186,7 @@ app.post('/webhook', (req, res) => {
                 var data = {
                   messageId: message.mid,
                   message: text,
+                  type: type,
                   senderId: senderId,
                   recipientId: recipientId,
                   epoch: webhookEvent.timestamp,
